@@ -62,7 +62,6 @@ local_output*
 *.pth.tar
 *.ckpt
 *.log
-*.txt
 
 test/
 *.json

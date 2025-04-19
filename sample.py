@@ -20,6 +20,7 @@ def main(args):
     ann_path = args.ann_path
     seed = args.seed
     decoder_path = args.decoder_ckpt
+    num_samples = args.num_samples
 
 
     device = torch.device("cuda")
@@ -41,7 +42,7 @@ def main(args):
 
 
     captions = []
-    for img_id in img_ids[:16]:  
+    for img_id in img_ids[:num_samples]:  
         ann_ids = coco.getAnnIds(imgIds=img_id)
         anns = coco.loadAnns(ann_ids)
         if anns:
