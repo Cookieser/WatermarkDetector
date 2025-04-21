@@ -27,12 +27,9 @@ def main(args):
     os.makedirs(f"{output_dir}/original", exist_ok=True)
     os.makedirs(f"{output_dir}/watermarked", exist_ok=True)
 
-
     # Fix the seed
-    
     np.random.seed(seed)
     random.seed(seed)
-
 
     coco = COCO(ann_path)
 
@@ -40,9 +37,11 @@ def main(args):
     random.seed(42)
     random.shuffle(img_ids)
 
+    img_ids_range = img_ids[args.id_range_start:args.id_range_end]
+
 
     captions = []
-    for img_id in img_ids[:num_samples]:  
+    for img_id in img_ids_range: 
         ann_ids = coco.getAnnIds(imgIds=img_id)
         anns = coco.loadAnns(ann_ids)
         if anns:
@@ -75,27 +74,30 @@ def main(args):
     original_decode = pipe.vae.decode
     for idx in range(0, len(captions), batch_size):
         batch_prompts = captions[idx:idx+batch_size]
-        generator = torch.Generator(device=device).manual_seed(seed + idx)
+
+        generator = torch.Generator(device=device).manual_seed(seed + idx + args.id_range_start)
         pipe.vae.decode = original_decode  
         image_origs = pipe(batch_prompts, generator=generator).images
 
         orig_paths = []
         for i, img in enumerate(image_origs):
-            orig_path = f"{output_dir}/original/img_{idx + i:04d}.png"
+            global_idx = args.id_range_start + idx + i
+            orig_path = f"{output_dir}/original/img_{global_idx :04d}.png"
             img.save(orig_path)
             orig_paths.append(orig_path)
 
 
-        generator = torch.Generator(device=device).manual_seed(seed + idx)
+        generator = torch.Generator(device=device).manual_seed(seed + idx + args.id_range_start)
         pipe.vae.decode = lambda x, *args, **kwargs: ldm_aef.decode(x).unsqueeze(0)
         image_watermarked = pipe(batch_prompts, generator=generator).images
 
-        for i, img in enumerate(image_origs):
-            wm_path = f"{output_dir}/watermarked/img_{idx + i:04d}.png"
+        for i, img in enumerate(image_watermarked):
+            global_idx = args.id_range_start + idx + i
+            wm_path = f"{output_dir}/watermarked/img_{global_idx:04d}.png"
             img.save(wm_path)
         
             dataset_records.append({
-                "id": idx + i,
+                "id": global_idx,
                 "prompt": batch_prompts[i],
                 "original": orig_paths[i],
                 "watermarked": wm_path
@@ -118,6 +120,8 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=8, help='Batch size for generation')
     parser.add_argument('--num_samples', type=int, default=16, help='Number of image-caption samples to use')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
+    parser.add_argument('--id_range_start', type=int, default=0, help='')
+    parser.add_argument('--id_range_end', type=int, default=5000, help='')
     
     args = parser.parse_args()
     main(args)
