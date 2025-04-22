@@ -66,3 +66,7 @@ local_output*
 test/
 *.json
 *.png
+
+res/
+
+resnet-classifier-224,224

@@ -65,7 +65,75 @@ def Forgery_no_box(original_image, watermarked_image, key, criterion, decoder,cl
 
     return acc, bound.item(), success, original_image,acc_list,diff_list
 
+def Forgery_no_box_classifier(original_image, key, criterion, decoder,classifier,args):
 
+    
+    r = args.r
+    lr = args.lr
+    epsilon = args.epsilon
+    iteration = args.iteration
+
+
+    classifier.eval()
+    for p in classifier.parameters():
+        p.requires_grad_(False)
+    original_image = original_image.cuda()
+    original_image_cloned = original_image.clone()
+
+    target_label = torch.ones(original_image.size(0), dtype=torch.long,device = original_image.device)
+    acc_list, diff_list = [], []
+    success = False
+
+
+    
+
+
+    for i in range(iteration):
+        original_image = original_image.requires_grad_(True)
+        min_value, max_value = torch.min(original_image), torch.max(original_image)
+
+        # Post-process the watermarked image.
+        logits = classifier(original_image)
+        loss   = criterion(logits, target_label)
+        preds  = logits.argmax(dim=1)
+        acc    = (preds == target_label).float().mean().item()
+
+        grads = torch.autograd.grad(loss, original_image)
+        with torch.no_grad():
+            original_image = original_image - lr * grads[0]
+            original_image = torch.clamp(original_image, min_value, max_value)
+
+        # Projection.
+        perturbation_norm = torch.norm(original_image - original_image_cloned, float('inf'))
+        if perturbation_norm.cpu().detach().numpy() >= r:
+            c = r / perturbation_norm
+            original_image = project(original_image, original_image_cloned, c)
+
+
+        mes = watermark_decoder(decoder,original_image)
+        watermark_acc = computer_acc(mes,key)
+        
+        bound = torch.max(torch.abs(original_image - original_image_cloned)).item()
+        acc_list.append(acc)
+        diff_list.append(loss.item())              # diff=CE loss
+        print(f"iter:{i:<3}  loss:{loss.item():.4f}  P(cls=1):{acc:.3f} watermark_acc:{watermark_acc:.6f}")
+
+
+        
+        # Early Stopping.
+        if perturbation_norm.cpu().detach().numpy() >= r:
+            print("stop because of the perturbation_norm....")
+            break
+
+        # if acc >= 1 - epsilon:
+        #     print(f"acc:{acc}")
+        #     success = True
+        #     break
+        
+        bound = perturbation_norm.item()
+
+
+    return acc, bound, success, original_image,original_image_cloned, acc_list,diff_list
 
 
 def transform_image(image):
