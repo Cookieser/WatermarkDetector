@@ -14,12 +14,7 @@ def str2msg(str):
 
 def watermark_decoder(msg_extractor,img):
 
-    transform_imnet = transforms.Compose([
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
-    ])
-
-
-    img = transform_imnet(img).to("cuda")
+    img = img.to("cuda")
 
     msg = msg_extractor(img) # b c h w -> b k
     # print("Logits: ", msg.squeeze().cpu().detach().numpy())

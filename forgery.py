@@ -115,8 +115,9 @@ def Forgery_no_box_classifier(original_image, key, criterion, decoder,classifier
         
         bound = torch.max(torch.abs(original_image - original_image_cloned)).item()
         acc_list.append(acc)
-        diff_list.append(loss.item())              # diff=CE loss
-        print(f"iter:{i:<3}  loss:{loss.item():.4f}  P(cls=1):{acc:.3f} watermark_acc:{watermark_acc:.6f}")
+        diff_list.append(loss.item())              
+        label_map = {0: "Original", 1: "Watermarked"}
+        print(f"iter:{i:<3}  loss:{loss.item():.4f}  Detect: {label_map[acc]} watermark_bit_wise_acc:{watermark_acc:.6f}")
 
 
         
